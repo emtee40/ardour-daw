@@ -81,7 +81,7 @@ ClipRecProcessor::run (BufferSet& bufs, samplepos_t start_sample, samplepos_t en
 				samplecnt_t total = chaninfo->rw_vector.len[0] + chaninfo->rw_vector.len[1];
 
 				if (nframes > total) {
-					DEBUG_TRACE (DEBUG::Butler, string_compose ("%1 overrun in %2, rec_nframes = %3 total space = %4\n",
+					DEBUG_TRACE (DEBUG::ClipRecording, string_compose ("%1 overrun in %2, rec_nframes = %3 total space = %4\n",
 					                                            DEBUG_THREAD_SELF, name(), nframes, total));
 					return;
 				}
