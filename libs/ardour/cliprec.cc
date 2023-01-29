@@ -18,6 +18,7 @@
 
 #include "pbd/compose.h"
 #include "pbd/debug.h"
+#include "pbd/pthread_utils.h"
 
 #include "ardour/audio_buffer.h"
 #include "ardour/cliprec.h"
@@ -27,11 +28,25 @@
 using namespace ARDOUR;
 using namespace PBD;
 
+PBD::Thread* ClipRecProcessor::_thread (0);
+bool ClipRecProcessor::thread_should_run (false);
+
 ClipRecProcessor::ClipRecProcessor (Session& s, Track& t, std::string const & name)
 	: Processor (s, name, Temporal::BeatTime)
 	, _track (t)
 	, channels (new ChannelList)
 {
+	if (!_thread) {
+		thread_should_run = true;
+		_thread = PBD::Thread::create (&ClipRecProcessor::thread_work);
+	}
+}
+
+void
+ClipRecProcessor::thread_work ()
+{
+	while (thread_should_run) {
+	}
 }
 
 bool
@@ -110,7 +125,7 @@ ClipRecProcessor::run (BufferSet& bufs, samplepos_t start_sample, samplepos_t en
 
 		for (MidiBuffer::iterator i = buf.begin(); i != buf.end(); ++i) {
 			Evoral::Event<MidiBuffer::TimeType> ev (*i, false);
-			if (ev.time() > nframes) {
+ 			if (ev.time() > nframes) {
 				break;
 			}
 

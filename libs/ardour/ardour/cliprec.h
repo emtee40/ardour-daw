@@ -24,6 +24,10 @@
 
 #include "ardour/processor.h"
 
+namespace PBD {
+class Thread;
+}
+
 namespace ARDOUR {
 
 class AudioFileSource;
@@ -71,6 +75,12 @@ class LIBARDOUR_API ClipRecProcessor : public Processor
 	/* The MIDI stuff */
 
 	MidiRingBuffer<samplepos_t>*  _midi_buf;
+
+	/* private (to class) butler thread */
+
+	static PBD::Thread* _thread;
+	static bool thread_should_run;
+	static void thread_work ();
 };
 
 } /* namespace */
