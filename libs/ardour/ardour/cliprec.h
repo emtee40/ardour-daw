@@ -28,18 +28,49 @@ namespace ARDOUR {
 
 class AudioFileSource;
 class Session;
+class Track;
 
 template<typename T> class MidiRingBuffer;
 
 class LIBARDOUR_API ClipRecProcessor : public Processor
 {
   public:
-	ClipRecProcessor (Session&, std::string const & name);
+	ClipRecProcessor (Session&, Track&, std::string const & name);
 	void run (BufferSet& bufs, samplepos_t start_sample, samplepos_t end_sample, double speed, pframes_t nframes, bool result_required);
 	bool can_support_io_configuration (const ChanCount& in, ChanCount& out);
 
   private:
+	Track& _track;
 
+	/** Information about one audio channel, playback or capture
+	 * (depending on the derived class)
+	 */
+	struct ChannelInfo : public boost::noncopyable {
+
+		ChannelInfo (samplecnt_t buffer_size);
+		virtual ~ChannelInfo ();
+
+		/** A ringbuffer for data to be recorded back, written to in the
+		 * process thread, read from in the butler thread.
+		 */
+		PBD::RingBufferNPT<Sample>* buf;
+		PBD::RingBufferNPT<Sample>::rw_vector rw_vector;
+
+		/* used only by capture */
+		boost::shared_ptr<AudioFileSource> write_source;
+
+		/* used in the butler thread only */
+		samplecnt_t curr_capture_cnt;
+
+		virtual void resize (samplecnt_t) = 0;
+	};
+
+	typedef std::vector<ChannelInfo*> ChannelList;
+	SerializedRCUManager<ChannelList> channels;
+
+	/* The MIDI stuff */
+
+	MidiRingBuffer<samplepos_t>*  _midi_buf;
 };
 
 } /* namespace */
