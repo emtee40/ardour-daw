@@ -19,26 +19,50 @@
 #include "pbd/compose.h"
 #include "pbd/debug.h"
 #include "pbd/pthread_utils.h"
+#include "pbd/semutils.h"
 
 #include "ardour/audio_buffer.h"
 #include "ardour/cliprec.h"
 #include "ardour/debug.h"
 #include "ardour/midi_track.h"
 
+#include "pbd/i18n.h"
+
 using namespace ARDOUR;
 using namespace PBD;
 
 PBD::Thread* ClipRecProcessor::_thread (0);
 bool ClipRecProcessor::thread_should_run (false);
+PBD::Semaphore* ClipRecProcessor::_semaphore (0);
 
 ClipRecProcessor::ClipRecProcessor (Session& s, Track& t, std::string const & name)
 	: Processor (s, name, Temporal::BeatTime)
 	, _track (t)
+	, _armed (false)
 	, channels (new ChannelList)
 {
 	if (!_thread) {
 		thread_should_run = true;
+		_semaphore = new PBD::Semaphore (X_("cliprec"), 0);
 		_thread = PBD::Thread::create (&ClipRecProcessor::thread_work);
+	}
+}
+
+void
+ClipRecProcessor::set_armed (bool yn)
+{
+	if (_armed == yn) {
+		assert (currently_recording == this);
+		return;
+	}
+
+	if (yn) {
+		if (currently_recording) {
+			currently_recording->set_armed (false);
+			currently_recording = 0;
+		}
+		_armed = true;
+		currently_recording = this;
 	}
 }
 
@@ -46,7 +70,17 @@ void
 ClipRecProcessor::thread_work ()
 {
 	while (thread_should_run) {
+		_semaphore->wait ();
+		ClipRecProcessor* crp = currently_recording;
+		if (crp) {
+			crp->pull_data ();
+		}
 	}
+}
+
+void
+ClipRecProcessor::pull_data ()
+{
 }
 
 bool
@@ -109,6 +143,10 @@ ClipRecProcessor::run (BufferSet& bufs, samplepos_t start_sample, samplepos_t en
 			}
 
 			chaninfo->buf->increment_write_ptr (nframes);
+
+			if (chaninfo->buf->read_space() > 10) {
+				_semaphore->signal ();
+			}
 		}
 	}
 

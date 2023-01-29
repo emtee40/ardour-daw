@@ -21,11 +21,13 @@
 
 
 #include "pbd/ringbufferNPT.h"
+#include "pbd/signals.h"
 
 #include "ardour/processor.h"
 
 namespace PBD {
 class Thread;
+class Semaphore;
 }
 
 namespace ARDOUR {
@@ -43,8 +45,13 @@ class LIBARDOUR_API ClipRecProcessor : public Processor
 	void run (BufferSet& bufs, samplepos_t start_sample, samplepos_t end_sample, double speed, pframes_t nframes, bool result_required);
 	bool can_support_io_configuration (const ChanCount& in, ChanCount& out);
 
+	bool armed() const { return _armed; }
+	void set_armed (bool yn);
+	PBD::Signal0<void> ArmedChanged;
+	
   private:
 	Track& _track;
+	bool _armed;
 
 	/** Information about one audio channel, playback or capture
 	 * (depending on the derived class)
@@ -79,8 +86,12 @@ class LIBARDOUR_API ClipRecProcessor : public Processor
 	/* private (to class) butler thread */
 
 	static PBD::Thread* _thread;
+	static PBD::Semaphore* _semaphore;
 	static bool thread_should_run;
 	static void thread_work ();
+	static ClipRecProcessor* currently_recording;
+
+	void pull_data ();
 };
 
 } /* namespace */
