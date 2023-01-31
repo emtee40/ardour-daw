@@ -23,7 +23,7 @@
 #include "pbd/ringbufferNPT.h"
 #include "pbd/signals.h"
 
-#include "ardour/processor.h"
+#include "ardour/disk_io.h"
 
 namespace PBD {
 class Thread;
@@ -38,7 +38,7 @@ class Track;
 
 template<typename T> class MidiRingBuffer;
 
-class LIBARDOUR_API ClipRecProcessor : public Processor
+class LIBARDOUR_API ClipRecProcessor : public DiskIOProcessor
 {
   public:
 	ClipRecProcessor (Session&, Track&, std::string const & name);
@@ -48,40 +48,13 @@ class LIBARDOUR_API ClipRecProcessor : public Processor
 	bool armed() const { return _armed; }
 	void set_armed (bool yn);
 	PBD::Signal0<void> ArmedChanged;
-	
+
+	float buffer_load () const;
+	void adjust_buffering ();
+	void configuration_changed ();
+
   private:
-	Track& _track;
 	bool _armed;
-
-	/** Information about one audio channel, playback or capture
-	 * (depending on the derived class)
-	 */
-	struct ChannelInfo : public boost::noncopyable {
-
-		ChannelInfo (samplecnt_t buffer_size);
-		virtual ~ChannelInfo ();
-
-		/** A ringbuffer for data to be recorded back, written to in the
-		 * process thread, read from in the butler thread.
-		 */
-		PBD::RingBufferNPT<Sample>* buf;
-		PBD::RingBufferNPT<Sample>::rw_vector rw_vector;
-
-		/* used only by capture */
-		boost::shared_ptr<AudioFileSource> write_source;
-
-		/* used in the butler thread only */
-		samplecnt_t curr_capture_cnt;
-
-		virtual void resize (samplecnt_t) = 0;
-	};
-
-	typedef std::vector<ChannelInfo*> ChannelList;
-	SerializedRCUManager<ChannelList> channels;
-
-	/* The MIDI stuff */
-
-	MidiRingBuffer<samplepos_t>*  _midi_buf;
 
 	/* private (to class) butler thread */
 
@@ -91,7 +64,9 @@ class LIBARDOUR_API ClipRecProcessor : public Processor
 	static void thread_work ();
 	static ClipRecProcessor* currently_recording;
 
-	void pull_data ();
+	int pull_data ();
+	void start_recording ();
+	void finish_recording ();
 };
 
 } /* namespace */
