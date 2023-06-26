@@ -313,6 +313,7 @@ children = [
         'libs/vamp-pyin',
         'libs/zita-resampler',
         'libs/zita-convolver',
+        'libs/aaf',
         # core ardour libraries
         'libs/pbd',
         'libs/midi++2',
